@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" 
+	layout="absolute" backgroundGradientAlphas="[1.0, 1.0]" 
+	backgroundGradientColors="[#FFFFFF, #FFFFFF]"
+	creationComplete="{onInit(event)}" move="{onMove(event)}">
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.events.ResizeEvent;
+			import mx.events.MoveEvent;
+			import intranet.mapa.entity.Coordenadas;		   
+		    import flash.external.ExternalInterface;
+		    
+		   [Bindable]
+		   private var hora : String; 
+		    
+		   [Bindable]
+		   private var timer:Timer = null; 
+		
+		   [Bindable]
+		   private var _timer:Timer;
+		   
+		   [Bindable]
+		   private var mapaAtivo:Boolean = false;
+		   
+		   [Bindable]
+		   public var htmlLayerName:String;
+			
+		   [Bindable]
+		   public var htmlLayerControl:String;
+			
+		   [Bindable]
+		   private var lonlat:Coordenadas = new Coordenadas();
+		   
+		   private var filtros:ArrayCollection = new ArrayCollection([
+		   		{descricao:"CQL", valor:"cql"},
+		   		{descricao:"OGC", valor:"ogc"},
+		   		{descricao:"FeatureID", valor:"fid"}
+		   ]);
+		   
+		   private function initTimer():void{
+				this.timer = new Timer( 1000 * 1 );
+				timer.addEventListener("timer", incrementa);
+				timer.start();
+				
+		   }
+		   
+		   private function incrementa(event:TimerEvent):void{
+				hora = hf.format( new Date() );
+		   }
+		
+		   private function onInit(e:Event):void{
+		   	    htmlLayerName = Application.application.parameters["htmlLayer"];
+				initTimer();
+				setHtmlLayerPosition();
+				setHtmlLayerSize();
+				
+				_timer = new Timer(100,1);
+				_timer.addEventListener(TimerEvent.TIMER, delayShowHtmlLayer);
+				_timer.start();
+				if (ExternalInterface.available) {
+					ExternalInterface.call("init()");
+					ExternalInterface.call("zoomInicial()");			
+				}				
+			}
+					
+		   protected function startDragging(event:MouseEvent):void{
+				//super.startDragging(event);
+				setHtmlLayerDisplay(false);
+			}
+			
+			protected function stopDragging():void{
+				//super.stopDragging();				
+				setHtmlLayerPosition();
+				setHtmlLayerDisplay(true);				
+			}
+			
+			private function onMove(e:MoveEvent):void{
+				setHtmlLayerPosition();
+			}
+			
+			private function onResize(e:ResizeEvent):void{
+				setHtmlLayerSize();
+			}
+			
+			private function setHtmlLayerPosition():void{				
+				var point1:Point = new Point(body.x, body.y);
+				point1 = body.localToGlobal(point1);				
+				
+				if (ExternalInterface.available) {
+					ExternalInterface.call("layerMove",htmlLayerName,point1.x,point1.y);//					
+				}
+			}
+			
+			private function filtrarMapa():void{
+				if (ExternalInterface.available) {
+					ExternalInterface.call("atualizarFilter", cbbFiltro.selectedItem.valor.toString() , txtFiltro.text);//					
+				}
+			}
+			
+			private function limparFiltroMapa():void{
+				txtFiltro.text = "";
+				if (ExternalInterface.available) {
+					ExternalInterface.call("atualizarFilter", cbbFiltro.selectedItem.valor.toString() , txtFiltro.text);//					
+				}
+			}
+			
+			private function setHtmlLayerSize():void{
+				if (ExternalInterface.available) {
+					ExternalInterface.call("layerSize",htmlLayerName,body.width,body.height);
+				}
+			}
+			
+			private function setHtmlLayerDisplay(show:Boolean):void	{
+				if (ExternalInterface.available) {
+					ExternalInterface.call("layerShow",htmlLayerName,show);
+				}
+			}
+			
+			private function delayShowHtmlLayer(e:TimerEvent):void{
+				setHtmlLayerDisplay(true);
+				
+				if(_timer){
+					_timer.stop();
+					_timer = null;
+				}
+			}
+			
+			private function closePopup():void{
+				if(this.isPopUp){
+					setHtmlLayerDisplay(false);
+				}
+			}
+			
+			private function menor():void{
+  		   		body.height = body.height - 140;
+  		   		setHtmlLayerSize();
+  		    }
+  		  
+  		    private function maior():void{
+  		   		body.height = plMenu.height;
+  		   		setHtmlLayerSize();
+  		    }  			
+			
+		    private function ativarInfo():void{
+           		ExternalInterface.call("ativarInfo");
+            }
+           
+            private function desativarInfo():void{
+           		ExternalInterface.call("desativarInfo");
+            }
+           
+            private function ativarPonto():void{
+           		ExternalInterface.call("toggleControl",'point');
+            }
+           
+            private function ativarLinha():void{
+           		ExternalInterface.call("toggleControl",'line');
+            }
+           
+            private function ativarPolygon():void{
+           		ExternalInterface.call("toggleControl",'polygon');
+            }
+           
+            private function ativarDrag():void{
+           		ExternalInterface.call("tooggleControl",'drag');
+            }
+           
+            private function ativarNavegador():void{
+           		ExternalInterface.call("ativarNavegador");
+            }
+		]]>
+	</mx:Script>
+	
+	<mx:DateFormatter id="df" formatString="DD/MM/YYYY"/>
+	<mx:DateFormatter id="hf" formatString="JJ:NN:SS"/>
+	
+	<mx:ApplicationControlBar fillAlphas="[1.0, 1.0]" fillColors="[#000000, #000000]" left="0" right="0" top="60" bottom="30" cornerRadius="0"
+		 horizontalScrollPolicy="off" verticalScrollPolicy="off">
+		<mx:Canvas width="200" height="100%" backgroundColor="#EBEBEB" cornerRadius="5" borderStyle="solid" horizontalScrollPolicy="off" verticalScrollPolicy="off">
+			<mx:Canvas width="178" top="30" horizontalCenter="0" borderStyle="solid" cornerRadius="5" backgroundColor="#FFFFFF" bottom="10">
+			</mx:Canvas>
+			<mx:Label x="10" y="9" text="Filtros" fontWeight="bold" fontSize="12" textDecoration="normal"/>
+		</mx:Canvas>
+		<mx:Canvas width="100%" height="100%" backgroundColor="#EBEBEB" cornerRadius="5" borderStyle="solid" horizontalScrollPolicy="off" verticalScrollPolicy="off">
+			<mx:Canvas width="52" cornerRadius="5" borderStyle="solid" id="plMenu" top="30" right="0" bottom="10" verticalScrollPolicy="off">
+				<mx:Canvas width="49" top="5" verticalScrollBarStyleName="off"  horizontalCenter="0" backgroundColor="#FFFFFF" bottom="5" verticalScrollPolicy="off">
+					<mx:LinkButton y="54" click="{ExternalInterface.call('zoomIn')}" height="34" icon="@Embed(source='imagens/botao/zoomin_off.gif')" themeColor="#8DE7FA" cornerRadius="0" id="btnZoomIn" width="45" horizontalCenter="0"/>
+					<mx:LinkButton y="89" click="{ExternalInterface.call('zoomOut')}" height="34" icon="@Embed(source='imagens/botao/zoomout_off.gif')" themeColor="#8DE7FA" cornerRadius="0" id="btnZoomOut" width="45" horizontalCenter="0"/>
+					<mx:LinkButton y="124" click="{ativarNavegador()}" height="34" icon="@Embed(source='imagens/botao/pan_off.gif')" themeColor="#8DE7FA" cornerRadius="0" width="45" horizontalCenter="0"/>
+					<mx:LinkButton y="159" click="{ativarInfo()}" height="34" icon="@Embed(source='imagens/botao/identify_off.gif')" themeColor="#8DE7FA" cornerRadius="0" width="45" horizontalCenter="0"/>
+					<mx:LinkButton y="206" click="{ativarPonto()}" height="34" icon="@Embed(source='imagens/botao/ponto.png')" themeColor="#8DE7FA" cornerRadius="0" width="45" horizontalCenter="0"/>
+					<mx:LinkButton y="242" click="{ativarLinha()}" height="34" icon="@Embed(source='imagens/botao/linha(1).png')" themeColor="#8DE7FA" cornerRadius="0" width="45" horizontalCenter="0"/>
+					<mx:LinkButton y="277" click="{ativarPolygon()}" height="34" icon="@Embed(source='imagens/botao/area.png')" themeColor="#8DE7FA" cornerRadius="0" width="45" horizontalCenter="0"/>
+					<mx:LinkButton y="322" height="34" icon="@Embed(source='imagens/botao/measure_area.png')" themeColor="#8DE7FA" cornerRadius="0" width="45" horizontalCenter="0"/>
+					<mx:LinkButton y="195" height="9" icon="@Embed(source='imagens/botao/separatorv.gif')" enabled="false" themeColor="#8DE7FA" cornerRadius="0" width="45" horizontalCenter="0"/>
+					<mx:LinkButton y="43" height="9" icon="@Embed(source='imagens/botao/separatorv.gif')" enabled="false" themeColor="#8DE7FA" cornerRadius="0" width="45" horizontalCenter="0"/>
+					<mx:LinkButton y="312" height="9" icon="@Embed(source='imagens/botao/separatorv.gif')" enabled="false" themeColor="#8DE7FA" cornerRadius="0" width="45" horizontalCenter="0"/>
+					<mx:LinkButton y="7" height="34" icon="@Embed(source='imagens/botao/print_off.gif')" themeColor="#8DE7FA" cornerRadius="0" width="45" horizontalCenter="0"/>
+					<mx:LinkButton y="357" height="34" icon="@Embed(source='imagens/botao/measure_off.gif')" themeColor="#8DE7FA" cornerRadius="0" width="45" horizontalCenter="0"/>
+					<mx:LinkButton y="392" height="34" icon="@Embed(source='imagens/botao/help_off.gif')" themeColor="#8DE7FA" cornerRadius="0" width="45" horizontalCenter="0"/>
+				</mx:Canvas>
+			</mx:Canvas>
+			<mx:Label x="19" y="7" text="Localizar:" fontWeight="bold"/>
+			<mx:TextInput x="86" y="5" width="186" id="txtLocalizar"/>
+			<mx:Button x="275" y="5" icon="@Embed(source='imagens/botao/localizar3.png')" width="25"/>
+			<mx:Panel layout="absolute" left="5" right="55" bottom="39" borderThicknessBottom="5" borderThicknessLeft="5" borderThicknessRight="5" borderThicknessTop="0" headerHeight="5" top="30">
+				<mx:Canvas borderStyle="solid" cornerRadius="0" backgroundColor="#FFFFFF" 
+					id="body" resize="{onResize(event)}" height="100%" width="100%" x="0" y="0">
+				</mx:Canvas>
+			</mx:Panel>
+			<mx:Label x="10" text="Filtro:" fontWeight="bold" bottom="11"/>
+			<mx:TextInput x="187" width="174" id="txtFiltro" bottom="9" text="STATE_NAME LIKE '%New%'"/>
+			<mx:Button x="363" icon="@Embed(source='imagens/botao/localizar3.png')" width="25" click="{filtrarMapa()}" bottom="8"/>
+			<mx:ComboBox x="57" width="128" id="cbbFiltro" dataProvider="{filtros}" labelField="descricao" bottom="9"/>			
+			<mx:Button x="391" click="{limparFiltroMapa()}" icon="@Embed(source='imagens/botao/limpar.png')" width="25" bottom="8"/>
+		</mx:Canvas>
+	</mx:ApplicationControlBar>
+	<mx:ApplicationControlBar bottom="0" left="0" right="0" fillAlphas="[1.0, 1.0]" fillColors="[#000000, #000000]" cornerRadius="0">
+		<mx:Spacer width="40%"/>
+		<mx:Label text="All Rights Reserved" color="#FFFFFF"/>
+		<mx:Spacer width="50"/>
+		<mx:Label text="Version: 0.1" color="#FFFFFF"/>
+		<mx:Spacer width="40%"/>
+	</mx:ApplicationControlBar>
+	<mx:ApplicationControlBar left="0" right="0" top="0" height="60" fillAlphas="[1.0, 1.0]" fillColors="[#1F1D1D, #000000]" cornerRadius="0"
+		 horizontalScrollPolicy="off" verticalScrollPolicy="off">
+		<mx:Canvas width="100%" height="100%" horizontalScrollPolicy="off" verticalScrollPolicy="off">
+			<mx:Label text="GEOFLEX" color="#FFFFFF" fontWeight="bold" fontSize="20" fontFamily="Georgia" x="58" y="3" textDecoration="normal" fontStyle="italic"/>
+			<mx:LinkButton icon="@Embed(source='imagens/logo/Browser.png')" width="55" height="100%" labelPlacement="right" x="0" verticalCenter="0"/>
+			<mx:Label x="60" y="29" text="Sistemas de Geoprocessamento" fontWeight="normal" color="#FFFFFF"/>
+			<mx:Label text="{ df.format( new Date() ) }" color="#FFFFFF" right="10" verticalCenter="0"/>
+		</mx:Canvas>
+	</mx:ApplicationControlBar>
+	
+</mx:Application>
